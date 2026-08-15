@@ -172,7 +172,7 @@ int main(int argc, char* argv[]) {
         stars[i].z = (rand() % 255) + 1;
     }
 
-    const char* scrollText = "HELLO DEMOSCENE * WELCOME TO THE LINUX TERMINAL * ENJOY THIS PARALLAX STARFIELD WITH SPHERICAL TEXT SPIN AND PIXEL FIRE * GREETINGS FROM NORWAY *       ";
+    const char* scrollText = "--- HELLO DEMOSCENE! *** WELCOME TO THE LINUX TERMINAL *** ENJOY THIS PARALLAX STARFIELD WITH SPHERICAL TEXT SPIN AND PIXEL FIRE *** GREETINGS FROM NORWAY! ---       ";
     int time_counter = 0;
     bool running = true;
     SDL_Event event;
