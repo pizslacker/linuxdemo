@@ -160,7 +160,7 @@ int main(int argc, char* argv[]) {
         SDL_ShowCursor(SDL_DISABLE);
     }
 
-    SDL_Window* window = SDL_CreateWindow("Linux Demoscene - Warp & Fire", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WINDOW_WIDTH, WINDOW_HEIGHT, windowFlags);
+    SDL_Window* window = SDL_CreateWindow("Linux Demoscene - Warp & Fire (C/SDL2)", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WINDOW_WIDTH, WINDOW_HEIGHT, windowFlags);
     SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
     
     SDL_RenderSetLogicalSize(renderer, FIRE_WIDTH, FIRE_HEIGHT);
