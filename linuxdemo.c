@@ -9,7 +9,6 @@
 /* Internal Render Resolution */
 #define FIRE_WIDTH 552
 #define FIRE_HEIGHT 300
-
 #define NUM_STARS 1000
 
 /* Classic 37-color fire palette */
@@ -20,11 +19,11 @@ static const uint32_t firePalette[37] = {
     0xFFcf770f, 0xFFcf7f0f, 0xFFCF8717, 0xFFc78717, 0xFFc78f17, 0xFFc7971f,
     0xFFbf9f1f, 0xFFbf9f1f, 0xFFbfa727, 0xFFbfaf27, 0xFFBfb727, 0xFFbfbf2f,
     0xFFcfc72f, 0xFFcfcf37, 0xFFcfdf3f, 0xFFdfdf47, 0xFFefef4f, 0xFFffff5b,
-    0xFFffffff // Hottest
+    0xFFffffff 
 };
 
-/* Expanded 3x5 font for the scroller & watermark */
-const char* font3x5[32][5] = {
+/* Empty brackets let the compiler automatically size the array perfectly */
+const char* font3x5[][5] = {
     {"###", "# #", "###", "# #", "# #"}, // 0: A
     {"## ", "# #", "## ", "# #", "## "}, // 1: B
     {" ##", "#  ", "#  ", "#  ", " ##"}, // 2: C
@@ -56,8 +55,13 @@ const char* font3x5[32][5] = {
     {"   ", "   ", "###", "   ", "   "}, // 28: -
     {" # ", "###", "# #", "###", " # "}, // 29: *
     {" # ", " # ", " # ", "   ", " # "}, // 30: ! 
-    {"#  ", "# #", "## ", "# #", "# #"}  // 31: k 
+    {"#  ", "# #", "## ", "# #", "# #"}, // 31: k 
+    {"#  ", "#  ", "## ", "# #", "## "}, // 32: b 
+    {"# #", "# #", " ##", "  #", "## "}  // 33: y 
 };
+
+// Calculate exact array boundaries dynamically
+#define FONT_MAX_INDEX (sizeof(font3x5) / sizeof(font3x5[0]) - 1)
 
 uint8_t firePixels[FIRE_HEIGHT][FIRE_WIDTH];
 uint32_t frameBuffer[FIRE_HEIGHT][FIRE_WIDTH];
@@ -81,7 +85,7 @@ void drawLine(int x0, int y0, int x1, int y1, uint32_t color) {
 }
 
 void drawChar(int ch_idx, float cx, float cy, float scale, uint32_t color) {
-    if (ch_idx < 0 || ch_idx > 31) return;
+    if (ch_idx < 0 || ch_idx > FONT_MAX_INDEX) return; 
     int size = (int)(2.0f * scale); 
     if (size < 1) size = 1;
 
@@ -104,7 +108,7 @@ void drawChar(int ch_idx, float cx, float cy, float scale, uint32_t color) {
 
 /* Additive Blending Character renderer */
 void drawGlowChar(int ch_idx, int cx, int cy, uint32_t color) {
-    if (ch_idx < 0 || ch_idx > 31) return;
+    if (ch_idx < 0 || ch_idx > FONT_MAX_INDEX) return; 
     for (int y = 0; y < 5; y++) {
         for (int x = 0; x < 3; x++) {
             if (font3x5[ch_idx][y][x] != ' ') {
@@ -144,8 +148,8 @@ void updateFire() {
 int main(int argc, char* argv[]) {
     srand((unsigned int)time(NULL));
 
-    int window_width = 2560;
-    int window_height = 1440;
+    int window_width = 1280;
+    int window_height = 720;
     bool isFullscreen = false;
 
     for (int i = 1; i < argc; i++) {
@@ -158,27 +162,37 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) < 0) return 1;
-
-    if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048) < 0) {
-        SDL_Log("SDL_mixer could not initialize: %s", Mix_GetError());
+    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) < 0) {
+        SDL_Log("Fatal: Failed to init SDL: %s", SDL_GetError());
+        return 1;
     }
 
-    Mix_Music *bgm = Mix_LoadMUS("snd1.mp3");
-    if (bgm) Mix_PlayMusic(bgm, -1);
+    // Safely load audio. If it fails, bgm stays NULL and won't crash
+    Mix_Music *bgm = NULL;
+    if (Mix_OpenAudio(22500, MIX_DEFAULT_FORMAT, 2, 2048) == 0) {
+        bgm = Mix_LoadMUS("snd1.mp3");
+        if (bgm) Mix_PlayMusic(bgm, -1);
+    } else {
+        SDL_Log("Warning: Audio failed to initialize, continuing without sound. %s", Mix_GetError());
+    }
 
     Uint32 windowFlags = SDL_WINDOW_RESIZABLE;
-    
     if (isFullscreen) {
         windowFlags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
         SDL_ShowCursor(SDL_DISABLE);
     }
 
+    // STRICT NULL CHECKS added to prevent window/renderer segfaults
     SDL_Window* window = SDL_CreateWindow("Linux Demoscene - Warp & Fire (C/SDL2)", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, window_width, window_height, windowFlags);
+    if (!window) { SDL_Log("Fatal: Failed to create Window: %s", SDL_GetError()); return 1; }
+
     SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+    if (!renderer) { SDL_Log("Fatal: Failed to create Renderer: %s", SDL_GetError()); return 1; }
     
-    SDL_RenderSetLogicalSize(renderer, FIRE_WIDTH, FIRE_HEIGHT);
     SDL_Texture* texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, FIRE_WIDTH, FIRE_HEIGHT);
+    if (!texture) { SDL_Log("Fatal: Failed to create Texture: %s", SDL_GetError()); return 1; }
+
+    SDL_RenderSetLogicalSize(renderer, FIRE_WIDTH, FIRE_HEIGHT);
 
     for(int i=0; i<NUM_STARS; i++) {
         stars[i].x = (rand() % 2000) - 1000;
@@ -186,7 +200,7 @@ int main(int argc, char* argv[]) {
         stars[i].z = (rand() % 255) + 1;
     }
 
-    const char* scrollText = "//^-_ HELLO  DEMOSCENE  ***  WELCOME  TO  THE  LINUX  TERMINAL  ***  ENJOY  THIS  PARALLAX  STARFIELD  WITH  SPHERICAL  TEXT  SPIN  AND  PIXEL  FIRE  ***  GREETINGS  FROM  NORWAY  _-^";
+    const char* scrollText = "HELLO  DEMOSCENE  ***  WELCOME  TO  THE  LINUX  TERMINAL  ***  ENJOY  THIS  PARALLAX  STARFIELD  WITH  SPHERICAL  TEXT  SPIN  AND  PIXEL  FIRE  ***  GREETINGS  FROM  NORWAY  ***";
     int time_counter = 0;
     bool running = true;
     SDL_Event event;
@@ -194,9 +208,7 @@ int main(int argc, char* argv[]) {
     while (running) {
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_QUIT) running = false;
-            if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE) {
-                running = false;
-            }
+            if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE) running = false;
         }
 
         memset(frameBuffer, 0, sizeof(frameBuffer));
@@ -235,15 +247,11 @@ int main(int argc, char* argv[]) {
             drawLine(prev_px, prev_py, px, py, 0xFF000000 | (r<<16) | (g<<8) | b);
         }
 
-        /* 3. Spherical Text Spin (FIXED JUMBLING) */
+        /* 3. Spherical Text Spin */
         float radius = 110.0f;
         for (int i = 0; scrollText[i] != '\0'; i++) {
-            
-            // New math: Time pushes characters forward. Index delays when they enter.
             float theta = (time_counter * 0.02f) - (i * 0.35f); 
             
-            // CRITICAL FIX: Only draw characters if they are strictly between 0 and PI.
-            // This prevents the string from wrapping around and overlapping itself on the screen.
             if (theta < 0.0f || theta > 3.14159265f) continue; 
             
             float z = sin(theta);
@@ -274,12 +282,23 @@ int main(int argc, char* argv[]) {
             }
         }
 
+        /* 5. Post-Processing: CRT Scanlines */
+        for (int y = 0; y < FIRE_HEIGHT; y += 2) {
+            for (int x = 0; x < FIRE_WIDTH; x++) {
+                uint32_t c = frameBuffer[y][x];
+                uint8_t r = ((c >> 16) & 0xFF) / 2;
+                uint8_t g = ((c >> 8) & 0xFF) / 2;
+                uint8_t b = (c & 0xFF) / 2;
+                frameBuffer[y][x] = 0xFF000000 | (r<<16) | (g<<8) | b;
+            }
+        }
+
         /* 4.5 Glowing Watermark (Bottom Right) */
-        int wm_indices[] = {31, 30, 12};
-        int wm_x = FIRE_WIDTH - 18;      
+        int wm_indices[] = {32, 33, 26, 31, 30, 12}; // by k!M
+        int wm_x = FIRE_WIDTH - 28;      
         int wm_y = FIRE_HEIGHT - 8;      
         
-        for(int i=0; i<3; i++) {
+        for(int i=0; i<6; i++) { 
             int cx = wm_x + (i * 4); 
             
             for(int oy=-1; oy<=1; oy++) {
@@ -292,16 +311,6 @@ int main(int argc, char* argv[]) {
             drawGlowChar(wm_indices[i], cx, wm_y, 0xFF88FFFF);
         }
 
-        /* 5. Post-Processing: CRT Scanlines */
-        for (int y = 0; y < FIRE_HEIGHT; y += 2) {
-            for (int x = 0; x < FIRE_WIDTH; x++) {
-                uint32_t c = frameBuffer[y][x];
-                uint8_t r = ((c >> 16) & 0xFF) / 2;
-                uint8_t g = ((c >> 8) & 0xFF) / 2;
-                uint8_t b = (c & 0xFF) / 2;
-                frameBuffer[y][x] = 0xFF000000 | (r<<16) | (g<<8) | b;
-            }
-        }
 
         /* 6. Push to GPU */
         SDL_UpdateTexture(texture, NULL, frameBuffer, FIRE_WIDTH * sizeof(uint32_t));
@@ -315,8 +324,10 @@ int main(int argc, char* argv[]) {
 
     if (isFullscreen) SDL_ShowCursor(SDL_ENABLE); 
 
+    // Safely cleanup audio
     if (bgm) Mix_FreeMusic(bgm);
     Mix_CloseAudio();
+    
     SDL_DestroyTexture(texture);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
