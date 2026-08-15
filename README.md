@@ -6,7 +6,7 @@ Made with C using SDL2 that implements the classic "Doom" pixel fire algorithm, 
 
 Usage:
 ```bash
-$ linuxdemo -f -w 1280 -h 720
+$ linuxdemo -f / -w 1280 -h 720
 ```
 
 #### What:
