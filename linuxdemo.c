@@ -1,4 +1,5 @@
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_mixer.h> // NEW: SDL_mixer header
 #include <stdlib.h>
 #include <time.h>
 #include <stdbool.h>
@@ -9,9 +10,9 @@
 #define FIRE_WIDTH 512
 #define FIRE_HEIGHT 300
 
-/* Display Window Resolution (used for windowed mode) */
-#define WINDOW_WIDTH 1024
-#define WINDOW_HEIGHT 768
+/* Display Window Resolution */
+#define WINDOW_WIDTH 2560
+#define WINDOW_HEIGHT 1440
 
 #define NUM_STARS 1000
 
@@ -133,21 +134,36 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    if (SDL_Init(SDL_INIT_VIDEO) < 0) return 1;
+    // NEW: Initialize both Video and Audio subsystems
+    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) < 0) {
+        SDL_Log("Could not initialize SDL: %s", SDL_GetError());
+        return 1;
+    }
 
-    // Apply fullscreen flag if requested (SDL_WINDOW_FULLSCREEN_DESKTOP creates a modern borderless fullscreen)
+    // NEW: Open audio device (44.1kHz, standard format, stereo, 2048 byte chunk size)
+    if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048) < 0) {
+        SDL_Log("SDL_mixer could not initialize: %s", Mix_GetError());
+        // Continuing anyway so the graphics still run without audio
+    }
+
+    // NEW: Load the WAV file as background music
+    Mix_Music *bgm = Mix_LoadMUS("snd1.mp3");
+    if (bgm) {
+        Mix_PlayMusic(bgm, -1); // -1 means loop infinitely
+    } else {
+        SDL_Log("Could not load sdn1.mp3: %s", Mix_GetError());
+    }
+
     Uint32 windowFlags = 0;
     if (isFullscreen) {
         windowFlags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
-        SDL_ShowCursor(SDL_DISABLE); // Hide the mouse cursor
+        SDL_ShowCursor(SDL_DISABLE);
     }
 
-    SDL_Window* window = SDL_CreateWindow("Linux Demoscene - Warp & Fire (C/SDL2)", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WINDOW_WIDTH, WINDOW_HEIGHT, windowFlags);
+    SDL_Window* window = SDL_CreateWindow("Linux Demoscene - Warp & Fire", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WINDOW_WIDTH, WINDOW_HEIGHT, windowFlags);
     SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
     
-    // This function automatically scales our 512x300 buffer to fit whatever the fullscreen resolution is
     SDL_RenderSetLogicalSize(renderer, FIRE_WIDTH, FIRE_HEIGHT);
-    
     SDL_Texture* texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, FIRE_WIDTH, FIRE_HEIGHT);
 
     for(int i=0; i<NUM_STARS; i++) {
@@ -164,8 +180,6 @@ int main(int argc, char* argv[]) {
     while (running) {
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_QUIT) running = false;
-            
-            // Allow quitting by pressing Escape (essential for fullscreen!)
             if (event.type == SDL_KEYDOWN) {
                 if (event.key.keysym.sym == SDLK_ESCAPE) {
                     running = false;
@@ -214,6 +228,7 @@ int main(int argc, char* argv[]) {
         /* 3. Spherical Text Spin */
         float radius = 110.0f;
         for (int i = 0; scrollText[i] != '\0'; i++) {
+            // Updated character spacing here
             float theta = (i * 0.20f) - (time_counter * 0.015f); 
             
             float z = sin(theta);
@@ -273,8 +288,14 @@ int main(int argc, char* argv[]) {
     }
 
     if (isFullscreen) {
-        SDL_ShowCursor(SDL_ENABLE); // Restore cursor before quitting
+        SDL_ShowCursor(SDL_ENABLE); 
     }
+
+    // NEW: Cleanup audio resources
+    if (bgm) {
+        Mix_FreeMusic(bgm);
+    }
+    Mix_CloseAudio();
 
     SDL_DestroyTexture(texture);
     SDL_DestroyRenderer(renderer);
