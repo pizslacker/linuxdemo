@@ -145,7 +145,7 @@ int main(int argc, char* argv[]) {
     SDL_Window* window = SDL_CreateWindow("Linux Demoscene - Warp & Fire (C/SDL2)", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WINDOW_WIDTH, WINDOW_HEIGHT, windowFlags);
     SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
     
-    // This function automatically scales our 320x240 buffer to fit whatever the fullscreen resolution is
+    // This function automatically scales our 512x300 buffer to fit whatever the fullscreen resolution is
     SDL_RenderSetLogicalSize(renderer, FIRE_WIDTH, FIRE_HEIGHT);
     
     SDL_Texture* texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, FIRE_WIDTH, FIRE_HEIGHT);
