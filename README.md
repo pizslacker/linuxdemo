@@ -5,7 +5,7 @@ A little excercise for myself creating a demoscene'ish program, showing off clas
 Made with C using SDL2 that implements the classic "Doom" pixel fire algorithm, spherical text scrolling banner and a parrallax moving star trail background. Now with a soundbyte bgm loop!
 
 #### What:
-- optimized demoscene binary (`24KB`, 4KB more than `LICENSE` file).
+- `-O3` optimized demoscene binary (`24KB`, 4KB more than `LICENSE` file).
 - 20KB soundbyte loop (courtesy of [**k!M**](https://soundcloud.com/kim-olsen-357297567)), making the total size 44KB!
 
 #### How:
