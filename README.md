@@ -8,6 +8,6 @@ It creates an internal framebuffer (an array of pixels), updates the fire logic 
 For the spherical text scroller, we iterate over the string and map each character's index to a circular path using sin(theta) and cos(theta).
 It uses Bresenham's Line Algorithm for Star Trails.
 
-It also emulates CRT scanlines for oldschool feels' :P
+It also emulates CRT scanlines for oldschool feels' :P Right before blasting the buffer to the GPU, we loop over every even row in the frameBuffer and bit-shift/divide the RGB channels by half, creating dark interlaced lines.
 
 ![linuxdemo](https://github.com/pizslacker/linuxdemo/blob/main/images/linuxdemo.png)
