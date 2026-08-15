@@ -6,7 +6,7 @@ Made with C using SDL2 that implements the classic "Doom" pixel fire algorithm, 
 
 #### What:
 - `-O3` optimized demoscene binary (`24KB`, 4KB more than `LICENSE` file).
-- 20KB soundbyte loop (courtesy of [**k!M**](https://soundcloud.com/kim-olsen-357297567)), making the total size 44KB!
+- `20KB` soundbyte loop (courtesy of [**k!M**](https://soundcloud.com/kim-olsen-357297567)), making the total size 44KB!
 
 #### How:
 - It creates an internal framebuffer (an array of pixels), updates the fire logic by seeding heat at the bottom and spreading it upward with randomized decay, and renders it to an SDL2 texture.
