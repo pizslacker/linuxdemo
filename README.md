@@ -10,7 +10,7 @@ $ linuxdemo -f / -w 1280 -h 720
 ```
 
 #### What:
-- `-O3` optimized demoscene binary (`28KB`, 4KB more than `LICENSE` file).
+- `-O3` optimized demoscene binary (`28KB`, 8KB more than `LICENSE` file).
 - `20KB` soundbyte loop (courtesy of [**k!M**](https://soundcloud.com/kim-olsen-357297567)), making the total size 48KB!
 
 #### How:
