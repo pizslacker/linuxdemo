@@ -9,11 +9,11 @@
 #define FIRE_WIDTH 512
 #define FIRE_HEIGHT 300
 
-/* Display Window Resolution */
+/* Display Window Resolution (used for windowed mode) */
 #define WINDOW_WIDTH 1024
 #define WINDOW_HEIGHT 768
 
-#define NUM_STARS 500
+#define NUM_STARS 1000
 
 /* Classic 37-color fire palette */
 static const uint32_t firePalette[37] = {
@@ -26,7 +26,7 @@ static const uint32_t firePalette[37] = {
     0xFFffffff // Hottest
 };
 
-/* Tiny 3x5 font for the scroller (A-Z, Space, ., -, *) */
+/* Tiny 3x5 font for the scroller */
 const char* font3x5[30][5] = {
     {"###", "# #", "###", "# #", "# #"}, // A
     {"## ", "# #", "## ", "# #", "## "}, // B
@@ -62,11 +62,25 @@ const char* font3x5[30][5] = {
 
 uint8_t firePixels[FIRE_HEIGHT][FIRE_WIDTH];
 uint32_t frameBuffer[FIRE_HEIGHT][FIRE_WIDTH];
-
-/* 3D Star structure */
 struct Star { float x, y, z; } stars[NUM_STARS];
 
-/* Draws a scaled character from our font array */
+/* Bresenham's Line Algorithm for Star Trails */
+void drawLine(int x0, int y0, int x1, int y1, uint32_t color) {
+    int dx = abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
+    int dy = -abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
+    int err = dx + dy, e2;
+
+    while (true) {
+        if (x0 >= 0 && x0 < FIRE_WIDTH && y0 >= 0 && y0 < FIRE_HEIGHT) {
+            frameBuffer[y0][x0] = color;
+        }
+        if (x0 == x1 && y0 == y1) break;
+        e2 = 2 * err;
+        if (e2 >= dy) { err += dy; x0 += sx; }
+        if (e2 <= dx) { err += dx; y0 += sy; }
+    }
+}
+
 void drawChar(int ch_idx, float cx, float cy, float scale, uint32_t color) {
     if (ch_idx < 0 || ch_idx > 29) return;
     int size = (int)(2.0f * scale); 
@@ -111,21 +125,38 @@ void updateFire() {
 int main(int argc, char* argv[]) {
     srand((unsigned int)time(NULL));
 
+    // Parse command line arguments
+    bool isFullscreen = false;
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "-f") == 0 || strcmp(argv[i], "--fullscreen") == 0) {
+            isFullscreen = true;
+        }
+    }
+
     if (SDL_Init(SDL_INIT_VIDEO) < 0) return 1;
 
-    SDL_Window* window = SDL_CreateWindow("Linux Demoscene - Parallax & Fire (C/SDL2)", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WINDOW_WIDTH, WINDOW_HEIGHT, 0);
+    // Apply fullscreen flag if requested (SDL_WINDOW_FULLSCREEN_DESKTOP creates a modern borderless fullscreen)
+    Uint32 windowFlags = 0;
+    if (isFullscreen) {
+        windowFlags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
+        SDL_ShowCursor(SDL_DISABLE); // Hide the mouse cursor
+    }
+
+    SDL_Window* window = SDL_CreateWindow("Linux Demoscene - Warp & Fire (C/SDL2)", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WINDOW_WIDTH, WINDOW_HEIGHT, windowFlags);
     SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+    
+    // This function automatically scales our 320x240 buffer to fit whatever the fullscreen resolution is
     SDL_RenderSetLogicalSize(renderer, FIRE_WIDTH, FIRE_HEIGHT);
+    
     SDL_Texture* texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, FIRE_WIDTH, FIRE_HEIGHT);
 
-    // Seed initial stars
     for(int i=0; i<NUM_STARS; i++) {
-        stars[i].x = (rand() % 4000) - 1000;
-        stars[i].y = (rand() % 4000) - 1000;
+        stars[i].x = (rand() % 2000) - 1000;
+        stars[i].y = (rand() % 2000) - 1000;
         stars[i].z = (rand() % 255) + 1;
     }
 
-    const char* scrollText = "HELLO DEMOSCENE! * # WELCOME TO THE LINUX TERMINAL # * ENJOY THIS PARALLAX STARFIELD WITH SPHERICAL TEXT SPIN AND PIXEL FIRE * GREETINGS FROM NORWAY *       ";
+    const char* scrollText = "HELLO DEMOSCENE * WELCOME TO THE LINUX TERMINAL * ENJOY THIS PARALLAX STARFIELD WITH SPHERICAL TEXT SPIN AND PIXEL FIRE * GREETINGS FROM NORWAY *       ";
     int time_counter = 0;
     bool running = true;
     SDL_Event event;
@@ -133,54 +164,73 @@ int main(int argc, char* argv[]) {
     while (running) {
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_QUIT) running = false;
+            
+            // Allow quitting by pressing Escape (essential for fullscreen!)
+            if (event.type == SDL_KEYDOWN) {
+                if (event.key.keysym.sym == SDLK_ESCAPE) {
+                    running = false;
+                }
+            }
         }
 
-        /* 1. Clear Screen */
         memset(frameBuffer, 0, sizeof(frameBuffer));
 
-        /* 2. Parallax 3D Stars */
+        /* 2. Warp-Speed Star Trails */
+        float starSpeed = 3.0f;
         for(int i=0; i<NUM_STARS; i++) {
-            stars[i].z -= 2.0f; // Fly forward
+            float old_z = stars[i].z;
+            stars[i].z -= starSpeed;
+            
             if (stars[i].z <= 1.0f) {
                 stars[i].z = 255.0f;
                 stars[i].x = (rand() % 2000) - 1000;
                 stars[i].y = (rand() % 2000) - 1000;
+                old_z = stars[i].z; 
             }
-            // 3D to 2D Projection
+            
             int px = (int)((stars[i].x / stars[i].z) * 120 + (FIRE_WIDTH / 2));
             int py = (int)((stars[i].y / stars[i].z) * 120 + (FIRE_HEIGHT / 2));
             
-            if (px >= 0 && px < FIRE_WIDTH && py >= 0 && py < FIRE_HEIGHT) {
-                uint8_t intensity = (uint8_t)(255 - stars[i].z); // Dimmer further away
-                frameBuffer[py][px] = 0xFF000000 | (intensity<<16) | (intensity<<8) | intensity;
+            int prev_px = (int)((stars[i].x / old_z) * 120 + (FIRE_WIDTH / 2));
+            int prev_py = (int)((stars[i].y / old_z) * 120 + (FIRE_HEIGHT / 2));
+            
+            int twinkle = rand() % 20;
+            int intensity = (int)(255 - stars[i].z) - twinkle;
+            if (intensity < 0) intensity = 0;
+            if (intensity > 255) intensity = 255;
+            
+            uint8_t r = intensity, g = intensity, b = intensity;
+            if (i % 3 == 0) { 
+                b = (intensity + 50 > 255) ? 255 : intensity + 50;
+            } else if (i % 4 == 0) { 
+                r = (intensity + 50 > 255) ? 255 : intensity + 50; 
+                g = (intensity + 20 > 255) ? 255 : intensity + 20;
             }
+            
+            uint32_t color = 0xFF000000 | (r<<16) | (g<<8) | b;
+            drawLine(prev_px, prev_py, px, py, color);
         }
 
         /* 3. Spherical Text Spin */
         float radius = 110.0f;
         for (int i = 0; scrollText[i] != '\0'; i++) {
-            // Map character index and time to an angle on a circle
-            float theta = (i * 0.20f) - (time_counter * 0.015f);
+            float theta = (i * 0.20f) - (time_counter * 0.015f); 
             
             float z = sin(theta);
-            if (z < 0) continue; // Behind the sphere, cull it
+            if (z < 0) continue; 
             float x = cos(theta);
             
-            // Project mapped 3D coordinates back to 2D screen space
             float scale = 0.5f + (z * 1.5f); 
             float cx = (FIRE_WIDTH / 2.0f) + (x * radius) - (scale * 4.0f); 
-            
-            // Add a sine wave on the Y axis to give the cylinder a wavy/bouncy deformation
-            float cy = (FIRE_HEIGHT / 3.0f) + (sin(time_counter * 0.02f + x * 2.0f) * 40.0f);
+            float cy = (FIRE_HEIGHT / 3.0f) + (sin(time_counter * 0.02f + x * 2.0f) * 40.0f); 
 
-            int char_idx = 26; // Default to Space
+            int char_idx = 26;
             char c = scrollText[i];
             if (c >= 'A' && c <= 'Z') char_idx = c - 'A';
             else if (c == '.') char_idx = 27;
             else if (c == '-') char_idx = 28;
             else if (c == '*') char_idx = 29;
 
-            // Give the text an electric cyan glow based on depth
             uint8_t depthColor = (uint8_t)(50 + z * 205);
             uint32_t color = 0xFF000000 | (0<<16) | (depthColor<<8) | 255; 
 
@@ -188,7 +238,6 @@ int main(int argc, char* argv[]) {
         }
 
         /* 4. Update and overlay Fire */
-        // Keep the bottom row burning
         for (int x = 0; x < FIRE_WIDTH; x++) {
             firePixels[FIRE_HEIGHT - 1][x] = 36;
         }
@@ -196,7 +245,6 @@ int main(int argc, char* argv[]) {
         for (int y = 0; y < FIRE_HEIGHT; y++) {
             for (int x = 0; x < FIRE_WIDTH; x++) {
                 int heat = firePixels[y][x];
-                // Only draw fire if it's hot enough, letting the background peek through the smoke
                 if (heat > 3) {
                     frameBuffer[y][x] = firePalette[heat];
                 }
@@ -222,6 +270,10 @@ int main(int argc, char* argv[]) {
 
         time_counter++;
         SDL_Delay(16);
+    }
+
+    if (isFullscreen) {
+        SDL_ShowCursor(SDL_ENABLE); // Restore cursor before quitting
     }
 
     SDL_DestroyTexture(texture);
