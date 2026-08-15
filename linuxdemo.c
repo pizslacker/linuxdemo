@@ -293,7 +293,7 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        /* 4.5 Glowing Watermark (Bottom Right) */
+        /* 6. Glowing Watermark (Bottom Right) */
         int wm_indices[] = {32, 33, 26, 31, 30, 12}; // by k!M
         int wm_x = FIRE_WIDTH - 28;      
         int wm_y = FIRE_HEIGHT - 8;      
