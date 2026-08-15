@@ -146,7 +146,7 @@ int main(int argc, char* argv[]) {
         // Continuing anyway so the graphics still run without audio
     }
 
-    // NEW: Load the WAV file as background music
+    // NEW: Load the MP3 file as background music
     Mix_Music *bgm = Mix_LoadMUS("snd1.mp3");
     if (bgm) {
         Mix_PlayMusic(bgm, -1); // -1 means loop infinitely
