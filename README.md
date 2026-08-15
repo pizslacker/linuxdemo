@@ -2,7 +2,7 @@
 
 A little excercise for myself creating a demoscene'ish program, showing off classic Amiga demoscene-like graphics, **On Linux**.
 
-Made with C using SDL2 that implements the classic "Doom" pixel fire algorithm, spherical text scrolling banner and a parrallax moving star trail background.
+Made with C using SDL2 that implements the classic "Doom" pixel fire algorithm, spherical text scrolling banner and a parrallax moving star trail background. Now with a soundbyte bgm loop!
 
 #### What:
 - optimized demoscene binary (`24KB`, 4KB more than `LICENSE` file).
