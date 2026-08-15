@@ -1,6 +1,9 @@
 # linuxdemo
 
-A little excercise for myself, creating an optimized demoscene binary (`24KB`, 4KB more than `LICENSE`), showing off classic Amiga demoscene-like graphics, **On Linux**.
+A little excercise for myself creating a demoscene'ish program, showing off classic Amiga demoscene-like graphics, **On Linux**.
+
+- optimized demoscene binary (`24KB`, 4KB more than `LICENSE` file).
+- 20KB soundbyte loop (courtesy of **k!M**).
 
 Made with C using SDL2 that implements the classic "Doom" pixel fire algorithm, parrallax text scrolling banner and a moving star trails background.
 
