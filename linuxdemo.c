@@ -312,7 +312,7 @@ int main(int argc, char* argv[]) {
         }
 
 
-        /* 6. Push to GPU */
+        /* 7. Push to GPU */
         SDL_UpdateTexture(texture, NULL, frameBuffer, FIRE_WIDTH * sizeof(uint32_t));
         SDL_RenderClear(renderer);
         SDL_RenderCopy(renderer, texture, NULL, NULL); 
