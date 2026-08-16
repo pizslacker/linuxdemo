@@ -266,7 +266,7 @@ int main(int argc, char* argv[]) {
                 
                 // --- THE CROSSFADE (INTERLEAVE) ---
                 if (intro_bgm) Mix_FadeOutChannel(0, 2000);    // Fade out the intro MP3 over 2 seconds
-                if (bgm) Mix_FadeInMusic(bgm, -1, 2000);      // Fade in the main WAV over 2 seconds
+                if (bgm) Mix_FadeInMusic(bgm, -1, 2000);      // Fade in the main MP3 over 2 seconds
                 
             } else if (alpha > 0) {
                 int intro_indices[] = {34, 35, 36, 37, 26, 32, 33, 26, 31, 30, 12};
@@ -354,21 +354,6 @@ int main(int argc, char* argv[]) {
             time_counter++;
         }
 
-        int wm_indices[] = {32, 33, 26, 31, 30, 12}; 
-            int wm_x = FIRE_WIDTH - 28;      
-            int wm_y = FIRE_HEIGHT - 8;      
-            
-            for(int i=0; i<6; i++) { 
-                int cx = wm_x + (i * 4); 
-                for(int oy=-1; oy<=1; oy++) {
-                    for(int ox=-1; ox<=1; ox++) {
-                        if(ox != 0 || oy != 0) {
-                            drawGlowChar(wm_indices[i], cx + ox, wm_y + oy, 0xFF002244); 
-                        }
-                    }
-                }
-                drawGlowChar(wm_indices[i], cx, wm_y, 0xFF88FFFF);
-            }
 
         /* --- POST-PROCESSING: CRT SCANLINES & EXIT FADE --- */
         float exit_brightness = 1.0f;
@@ -402,6 +387,22 @@ int main(int argc, char* argv[]) {
                 frameBuffer[y][x] = 0xFF000000 | (r<<16) | (g<<8) | b;
             }
         }
+
+        int wm_indices[] = {32, 33, 26, 31, 30, 12}; 
+            int wm_x = FIRE_WIDTH - 28;      
+            int wm_y = FIRE_HEIGHT - 8;      
+            
+            for(int i=0; i<6; i++) { 
+                int cx = wm_x + (i * 4); 
+                for(int oy=-1; oy<=1; oy++) {
+                    for(int ox=-1; ox<=1; ox++) {
+                        if(ox != 0 || oy != 0) {
+                            drawGlowChar(wm_indices[i], cx + ox, wm_y + oy, 0xFF002244); 
+                        }
+                    }
+                }
+                drawGlowChar(wm_indices[i], cx, wm_y, 0xFF88FFFF);
+            }
 
         SDL_UpdateTexture(texture, NULL, frameBuffer, FIRE_WIDTH * sizeof(uint32_t));
         SDL_RenderClear(renderer);
