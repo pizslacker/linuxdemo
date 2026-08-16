@@ -170,11 +170,20 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
+    Mix_Chunk *intro_bgm = NULL; // NEW: The intro audio chunk
     Mix_Music *bgm = NULL;
+    
+    // NEW: Variable to hold the actual channel the intro gets placed on
+    int intro_channel = -1; 
+    
     if (Mix_OpenAudio(22500, MIX_DEFAULT_FORMAT, 2, 2048) == 0) {
-        bgm = Mix_LoadMUS("snd1.mp3");
-        if (bgm) {
-            Mix_FadeInMusic(bgm, -1, 4000); 
+        bgm = Mix_LoadMUS("bgm.mp3");
+        intro_bgm = Mix_LoadWAV("intro.mp3");
+        
+        if (intro_bgm) {
+            // FIXED: Passing '-1' asks SDL_mixer to find the first free channel. 
+            // We then save that exact channel ID to stop it later.
+            intro_channel = Mix_FadeInChannel(-1, intro_bgm, 0, 2000); 
         }
     } else {
         SDL_Log("Warning: Audio failed to initialize, continuing without sound. %s", Mix_GetError());
@@ -199,12 +208,10 @@ int main(int argc, char* argv[]) {
 
     const char* scrollText = "*** HELLO  DEMOSCENE!  ***  WELCOME  TO  THE  LINUX  TERMINAL  ***  ENJOY  THIS  PARALLAX  STARFIELD  WITH  SPHERICAL  TEXT  SPIN  AND  PIXEL  FIRE  ***  GREETINGS  FROM  NORWAY!   ***";
     
-    // State machine variables
     int demo_state = 0; 
     int intro_frames = 0;
     int time_counter = 0;
     
-    // NEW: Exit Sequence variables
     bool running = true;
     bool is_exiting = false;
     int exit_frames = 0;
@@ -213,14 +220,15 @@ int main(int argc, char* argv[]) {
 
     while (running) {
         while (SDL_PollEvent(&event)) {
-            // Hard OS quit (clicking the "X" button) exits instantly
             if (event.type == SDL_QUIT) running = false;
             
-            // Soft quit (Pressing ESC) triggers the gorgeous fade-out sequence
             if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE) {
                 if (!is_exiting) {
                     is_exiting = true;
-                    if (bgm) Mix_FadeOutMusic(2000); // Fade audio over 2 seconds
+                    if (bgm) Mix_FadeOutMusic(2000); 
+                    
+                    // Fade out dynamic intro channel if we quit early
+                    if (intro_channel != -1) Mix_FadeOutChannel(intro_channel, 2000); 
                 }
             }
         }
@@ -252,8 +260,14 @@ int main(int argc, char* argv[]) {
             else if (intro_frames < 210) alpha = 255 - ((intro_frames - 150) * 255) / 60; 
             else alpha = 0;                                                         
 
+            // The moment the visual intro ends (4 seconds in)
             if (intro_frames >= 240) {
                 demo_state = 1;
+                
+                // --- THE CROSSFADE (INTERLEAVE) ---
+                if (intro_bgm) Mix_FadeOutChannel(0, 2000);    // Fade out the intro MP3 over 2 seconds
+                if (bgm) Mix_FadeInMusic(bgm, -1, 2000);      // Fade in the main WAV over 2 seconds
+                
             } else if (alpha > 0) {
                 int intro_indices[] = {34, 35, 36, 37, 26, 32, 33, 26, 31, 30, 12};
                 
@@ -337,7 +351,10 @@ int main(int argc, char* argv[]) {
                 }
             }
 
-            int wm_indices[] = {32, 33, 26, 31, 30, 12}; 
+            time_counter++;
+        }
+
+        int wm_indices[] = {32, 33, 26, 31, 30, 12}; 
             int wm_x = FIRE_WIDTH - 28;      
             int wm_y = FIRE_HEIGHT - 8;      
             
@@ -353,18 +370,13 @@ int main(int argc, char* argv[]) {
                 drawGlowChar(wm_indices[i], cx, wm_y, 0xFF88FFFF);
             }
 
-            time_counter++;
-        }
-
         /* --- POST-PROCESSING: CRT SCANLINES & EXIT FADE --- */
         float exit_brightness = 1.0f;
         if (is_exiting) {
             exit_frames++;
-            // Calculate a descending multiplier from 1.0 to 0.0 over 120 frames (~2 seconds)
             exit_brightness = 1.0f - ((float)exit_frames / 120.0f);
             if (exit_brightness < 0.0f) exit_brightness = 0.0f;
             
-            // Terminate loop once the screen goes fully black
             if (exit_frames >= 120) running = false;
         }
 
@@ -375,14 +387,12 @@ int main(int argc, char* argv[]) {
                 uint8_t g = (c >> 8) & 0xFF;
                 uint8_t b = c & 0xFF;
                 
-                // 1. Apply Retro CRT Scanline darkening on even rows
                 if ((y & 1) == 0) {
                     r >>= 1; 
                     g >>= 1; 
                     b >>= 1;
                 }
 
-                // 2. Multiply RGB by the dimming factor if we are exiting
                 if (is_exiting) {
                     r = (uint8_t)(r * exit_brightness);
                     g = (uint8_t)(g * exit_brightness);
@@ -403,7 +413,9 @@ int main(int argc, char* argv[]) {
 
     if (isFullscreen) SDL_ShowCursor(SDL_ENABLE); 
 
+    // Safely free both audio assets
     if (bgm) Mix_FreeMusic(bgm);
+    if (intro_bgm) Mix_FreeChunk(intro_bgm); // NEW: Free the intro chunk
     Mix_CloseAudio();
     
     SDL_DestroyTexture(texture);
