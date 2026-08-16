@@ -22,7 +22,7 @@ static const uint32_t firePalette[37] = {
     0xFFffffff 
 };
 
-/* Empty brackets let the compiler automatically size the array perfectly */
+/* Expanded 3x5 font (Added m, a, d, e for the intro screen) */
 const char* font3x5[][5] = {
     {"###", "# #", "###", "# #", "# #"}, // 0: A
     {"## ", "# #", "## ", "# #", "## "}, // 1: B
@@ -57,11 +57,15 @@ const char* font3x5[][5] = {
     {" # ", " # ", " # ", "   ", " # "}, // 30: ! 
     {"#  ", "# #", "## ", "# #", "# #"}, // 31: k 
     {"#  ", "#  ", "## ", "# #", "## "}, // 32: b 
-    {"# #", "# #", " ##", "  #", "## "}  // 33: y 
+    {"# #", "# #", " ##", "  #", "## "}, // 33: y 
+    {"   ", "# #", "###", "# #", "# #"}, // 34: m (lowered)
+    {"   ", " ##", "  #", " ##", "###"}, // 35: a 
+    {"  #", "  #", " ##", "# #", " ##"}, // 36: d 
+    {"   ", " ##", "###", "#  ", " ##"}  // 37: e 
 };
 
-// Calculate exact array boundaries dynamically
-#define FONT_MAX_INDEX (sizeof(font3x5) / sizeof(font3x5[0]) - 1)
+// FIXED: Explicit (int) cast prevents -Wsign-compare compiler warnings
+#define FONT_MAX_INDEX ((int)(sizeof(font3x5) / sizeof(font3x5[0])) - 1)
 
 uint8_t firePixels[FIRE_HEIGHT][FIRE_WIDTH];
 uint32_t frameBuffer[FIRE_HEIGHT][FIRE_WIDTH];
@@ -167,13 +171,13 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    // Safely load audio. If it fails, bgm stays NULL and won't crash
     Mix_Music *bgm = NULL;
     if (Mix_OpenAudio(22500, MIX_DEFAULT_FORMAT, 2, 2048) == 0) {
         bgm = Mix_LoadMUS("snd1.mp3");
-        if (bgm) Mix_PlayMusic(bgm, -1);
-    } else {
-        SDL_Log("Warning: Audio failed to initialize, continuing without sound. %s", Mix_GetError());
+        if (bgm) {
+            // FIXED: Fades the music in over 4000 milliseconds (4 seconds)
+            Mix_FadeInMusic(bgm, -1, 4000); 
+        }
     }
 
     Uint32 windowFlags = SDL_WINDOW_RESIZABLE;
@@ -182,16 +186,9 @@ int main(int argc, char* argv[]) {
         SDL_ShowCursor(SDL_DISABLE);
     }
 
-    // STRICT NULL CHECKS added to prevent window/renderer segfaults
-    SDL_Window* window = SDL_CreateWindow("Linux Demoscene - Warp & Fire (C/SDL2)", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, window_width, window_height, windowFlags);
-    if (!window) { SDL_Log("Fatal: Failed to create Window: %s", SDL_GetError()); return 1; }
-
+    SDL_Window* window = SDL_CreateWindow("Linux Demoscene by k!M (C/SDL2)", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, window_width, window_height, windowFlags);
     SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
-    if (!renderer) { SDL_Log("Fatal: Failed to create Renderer: %s", SDL_GetError()); return 1; }
-    
     SDL_Texture* texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, FIRE_WIDTH, FIRE_HEIGHT);
-    if (!texture) { SDL_Log("Fatal: Failed to create Texture: %s", SDL_GetError()); return 1; }
-
     SDL_RenderSetLogicalSize(renderer, FIRE_WIDTH, FIRE_HEIGHT);
 
     for(int i=0; i<NUM_STARS; i++) {
@@ -200,8 +197,13 @@ int main(int argc, char* argv[]) {
         stars[i].z = (rand() % 255) + 1;
     }
 
-    const char* scrollText = "HELLO  DEMOSCENE  ***  WELCOME  TO  THE  LINUX  TERMINAL  ***  ENJOY  THIS  PARALLAX  STARFIELD  WITH  SPHERICAL  TEXT  SPIN  AND  PIXEL  FIRE  ***  GREETINGS  FROM  NORWAY  ***";
+    const char* scrollText = "*** HELLO  DEMOSCENE!  ***  WELCOME  TO  THE  LINUX  TERMINAL  ***  ENJOY  THIS  PARALLAX  STARFIELD  WITH  SPHERICAL  TEXT  SPIN  AND  PIXEL  FIRE  ***  GREETINGS  FROM  NORWAY!   ***";
+    
+    // State machine variables
+    int demo_state = 0; // 0 = Intro, 1 = Main Demo
+    int intro_frames = 0;
     int time_counter = 0;
+    
     bool running = true;
     SDL_Event event;
 
@@ -213,76 +215,128 @@ int main(int argc, char* argv[]) {
 
         memset(frameBuffer, 0, sizeof(frameBuffer));
 
-        /* 2. Warp-Speed Star Trails */
-        float starSpeed = 3.0f;
-        for(int i=0; i<NUM_STARS; i++) {
-            float old_z = stars[i].z;
-            stars[i].z -= starSpeed;
-            
-            if (stars[i].z <= 1.0f) {
-                stars[i].z = 255.0f;
-                stars[i].x = (rand() % 2000) - 1000;
-                stars[i].y = (rand() % 2000) - 1000;
-                old_z = stars[i].z; 
-            }
-            
-            int px = (int)((stars[i].x / stars[i].z) * 120 + (FIRE_WIDTH / 2));
-            int py = (int)((stars[i].y / stars[i].z) * 120 + (FIRE_HEIGHT / 2));
-            
-            int prev_px = (int)((stars[i].x / old_z) * 120 + (FIRE_WIDTH / 2));
-            int prev_py = (int)((stars[i].y / old_z) * 120 + (FIRE_HEIGHT / 2));
-            
-            int twinkle = rand() % 20;
-            int intensity = (int)(255 - stars[i].z) - twinkle;
-            if (intensity < 0) intensity = 0;
-            if (intensity > 255) intensity = 255;
-            
-            uint8_t r = intensity, g = intensity, b = intensity;
-            if (i % 3 == 0) b = (intensity + 50 > 255) ? 255 : intensity + 50;
-            else if (i % 4 == 0) { 
-                r = (intensity + 50 > 255) ? 255 : intensity + 50; 
-                g = (intensity + 20 > 255) ? 255 : intensity + 20;
-            }
-            
-            drawLine(prev_px, prev_py, px, py, 0xFF000000 | (r<<16) | (g<<8) | b);
-        }
-
-        /* 3. Spherical Text Spin */
-        float radius = 110.0f;
-        for (int i = 0; scrollText[i] != '\0'; i++) {
-            float theta = (time_counter * 0.02f) - (i * 0.35f); 
-            
-            if (theta < 0.0f || theta > 3.14159265f) continue; 
-            
-            float z = sin(theta);
-            float x = cos(theta);
-            
-            float scale = 0.5f + (z * 1.5f); 
-            float cx = (FIRE_WIDTH / 2.0f) + (x * radius) - (scale * 4.0f); 
-            float cy = (FIRE_HEIGHT / 3.0f) + (sin(time_counter * 0.02f + x * 2.0f) * 40.0f); 
-
-            int char_idx = 26;
-            char c = scrollText[i];
-            if (c >= 'A' && c <= 'Z') char_idx = c - 'A';
-            else if (c == '.') char_idx = 27;
-            else if (c == '-') char_idx = 28;
-            else if (c == '*') char_idx = 29;
-
-            uint8_t depthColor = (uint8_t)(50 + z * 205);
-            drawChar(char_idx, cx, cy, scale, 0xFF000000 | (0<<16) | (depthColor<<8) | 255);
-        }
-
-        /* 4. Update and overlay Fire */
+        /* --- GLOBAL BACKGROUND UPDATES --- */
+        // We update the fire invisibly during the intro so it's fully blazing when the scene cuts
         for (int x = 0; x < FIRE_WIDTH; x++) firePixels[FIRE_HEIGHT - 1][x] = 36;
         updateFire();
-        for (int y = 0; y < FIRE_HEIGHT; y++) {
-            for (int x = 0; x < FIRE_WIDTH; x++) {
-                int heat = firePixels[y][x];
-                if (heat > 3) frameBuffer[y][x] = firePalette[heat];
-            }
-        }
+        
+        float starSpeed = 3.0f;
 
-        /* 5. Post-Processing: CRT Scanlines */
+        /* --- STATE 0: INTRO FADE-IN SCREEN --- */
+        if (demo_state == 0) {
+            intro_frames++;
+            
+            // Silently push the stars forward in the background
+            for(int i=0; i<NUM_STARS; i++) {
+                stars[i].z -= starSpeed;
+                if (stars[i].z <= 1.0f) {
+                    stars[i].z = 255.0f;
+                    stars[i].x = (rand() % 2000) - 1000;
+                    stars[i].y = (rand() % 2000) - 1000;
+                }
+            }
+
+            // Calculate Fade Alpha (60 FPS base)
+            int alpha = 0;
+            if (intro_frames < 60) alpha = (intro_frames * 255) / 60;               // Fade In
+            else if (intro_frames < 150) alpha = 255;                               // Hold
+            else if (intro_frames < 210) alpha = 255 - ((intro_frames - 150) * 255) / 60; // Fade Out
+            else alpha = 0;                                                         // Black Screen Hold
+
+            // Switch to Main Demo at 4 seconds (240 frames)
+            if (intro_frames >= 240) {
+                demo_state = 1;
+            } else if (alpha > 0) {
+                // "made by k!M" -> indices: m, a, d, e, space, b, y, space, k, !, M
+                int intro_indices[] = {34, 35, 36, 37, 26, 32, 33, 26, 31, 30, 12};
+                
+                float scale = 1.0f;
+                int size = 2; // Pixel block size for scale 1.0
+                
+                // Math to perfectly center the text string on screen
+                int char_width = 3 * size;
+                int spacing = 1 * size;
+                int total_width = 11 * char_width + 10 * spacing;
+                int start_x = (FIRE_WIDTH - total_width) / 2;
+                int start_y = (FIRE_HEIGHT - (5 * size)) / 2;
+
+                for (int i = 0; i < 11; i++) {
+                    drawChar(intro_indices[i], start_x + i * (char_width + spacing), start_y, scale, 0xFF000000 | (alpha<<16) | (alpha<<8) | alpha);
+                }
+            }
+        } 
+        
+        /* --- STATE 1: MAIN DEMO --- */
+        else {
+            /* Warp-Speed Star Trails */
+            for(int i=0; i<NUM_STARS; i++) {
+                float old_z = stars[i].z;
+                stars[i].z -= starSpeed;
+                
+                if (stars[i].z <= 1.0f) {
+                    stars[i].z = 255.0f;
+                    stars[i].x = (rand() % 2000) - 1000;
+                    stars[i].y = (rand() % 2000) - 1000;
+                    old_z = stars[i].z; 
+                }
+                
+                int px = (int)((stars[i].x / stars[i].z) * 120 + (FIRE_WIDTH / 2));
+                int py = (int)((stars[i].y / stars[i].z) * 120 + (FIRE_HEIGHT / 2));
+                
+                int prev_px = (int)((stars[i].x / old_z) * 120 + (FIRE_WIDTH / 2));
+                int prev_py = (int)((stars[i].y / old_z) * 120 + (FIRE_HEIGHT / 2));
+                
+                int twinkle = rand() % 20;
+                int intensity = (int)(255 - stars[i].z) - twinkle;
+                if (intensity < 0) intensity = 0;
+                if (intensity > 255) intensity = 255;
+                
+                uint8_t r = intensity, g = intensity, b = intensity;
+                if (i % 3 == 0) b = (intensity + 50 > 255) ? 255 : intensity + 50;
+                else if (i % 4 == 0) { 
+                    r = (intensity + 50 > 255) ? 255 : intensity + 50; 
+                    g = (intensity + 20 > 255) ? 255 : intensity + 20;
+                }
+                
+                drawLine(prev_px, prev_py, px, py, 0xFF000000 | (r<<16) | (g<<8) | b);
+            }
+
+            /* Spherical Text Spin */
+            float radius = 110.0f;
+            for (int i = 0; scrollText[i] != '\0'; i++) {
+                float theta = (time_counter * 0.02f) - (i * 0.35f); 
+                
+                if (theta < 0.0f || theta > 3.14159265f) continue; 
+                
+                float z = sin(theta);
+                float x = cos(theta);
+                
+                float scale = 0.5f + (z * 1.5f); 
+                float cx = (FIRE_WIDTH / 2.0f) + (x * radius) - (scale * 4.0f); 
+                float cy = (FIRE_HEIGHT / 3.0f) + (sin(time_counter * 0.02f + x * 2.0f) * 40.0f); 
+
+                int char_idx = 26;
+                char c = scrollText[i];
+                if (c >= 'A' && c <= 'Z') char_idx = c - 'A';
+                else if (c == '.') char_idx = 27;
+                else if (c == '-') char_idx = 28;
+                else if (c == '*') char_idx = 29;
+
+                uint8_t depthColor = (uint8_t)(50 + z * 205);
+                drawChar(char_idx, cx, cy, scale, 0xFF000000 | (0<<16) | (depthColor<<8) | 255);
+            }
+
+            /* Overlay Fire */
+            for (int y = 0; y < FIRE_HEIGHT; y++) {
+                for (int x = 0; x < FIRE_WIDTH; x++) {
+                    int heat = firePixels[y][x];
+                    if (heat > 3) frameBuffer[y][x] = firePalette[heat];
+                }
+            }
+
+
+        /* --- POST-PROCESSING: CRT SCANLINES --- 
+           (Applied to both Intro screen and Main demo for visual consistency) */
         for (int y = 0; y < FIRE_HEIGHT; y += 2) {
             for (int x = 0; x < FIRE_WIDTH; x++) {
                 uint32_t c = frameBuffer[y][x];
@@ -293,38 +347,37 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        /* 6. Glowing Watermark (Bottom Right) */
-        int wm_indices[] = {32, 33, 26, 31, 30, 12}; // by k!M
-        int wm_x = FIRE_WIDTH - 28;      
-        int wm_y = FIRE_HEIGHT - 8;      
-        
-        for(int i=0; i<6; i++) { 
-            int cx = wm_x + (i * 4); 
+        /* Glowing Watermark (Bottom Right) */
+            int wm_indices[] = {32, 33, 26, 31, 30, 12}; // by k!M
+            int wm_x = FIRE_WIDTH - 28;      
+            int wm_y = FIRE_HEIGHT - 8;      
             
-            for(int oy=-1; oy<=1; oy++) {
-                for(int ox=-1; ox<=1; ox++) {
-                    if(ox != 0 || oy != 0) {
-                        drawGlowChar(wm_indices[i], cx + ox, wm_y + oy, 0xFF002244); 
+            for(int i=0; i<6; i++) { 
+                int cx = wm_x + (i * 4); 
+                for(int oy=-1; oy<=1; oy++) {
+                    for(int ox=-1; ox<=1; ox++) {
+                        if(ox != 0 || oy != 0) {
+                            drawGlowChar(wm_indices[i], cx + ox, wm_y + oy, 0xFF002244); 
+                        }
                     }
                 }
+                drawGlowChar(wm_indices[i], cx, wm_y, 0xFF88FFFF);
             }
-            drawGlowChar(wm_indices[i], cx, wm_y, 0xFF88FFFF);
+
+            time_counter++;
         }
 
-
-        /* 7. Push to GPU */
+        /* --- PUSH TO GPU --- */
         SDL_UpdateTexture(texture, NULL, frameBuffer, FIRE_WIDTH * sizeof(uint32_t));
         SDL_RenderClear(renderer);
         SDL_RenderCopy(renderer, texture, NULL, NULL); 
         SDL_RenderPresent(renderer);
 
-        time_counter++;
         SDL_Delay(16);
     }
 
     if (isFullscreen) SDL_ShowCursor(SDL_ENABLE); 
 
-    // Safely cleanup audio
     if (bgm) Mix_FreeMusic(bgm);
     Mix_CloseAudio();
     
