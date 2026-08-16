@@ -11,7 +11,7 @@ $ linuxdemo -f / --fullscreen /  -w 1280 -h 720 / --width 1280 --height 720
 
 #### What:
 - `-O3` optimized demoscene binary (`36KB`, 16KB more than the `LICENSE` file).
-- `40KB` intro sound chunk + `36KB` soundbyte loop (courtesy of [**k!M**](https://soundcloud.com/kim-olsen-357297567)), making the total size 110KB!
+- `40KB` intro sound chunk + `36KB` soundbyte loop (courtesy of [**k!M**](https://soundcloud.com/kim-olsen-357297567)), making the total size 112KB!
 
 #### How:
 - It creates an internal framebuffer (an array of pixels), updates the fire logic by seeding heat at the bottom and spreading it upward with randomized decay, and renders it to an SDL2 texture.
