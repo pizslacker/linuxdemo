@@ -176,7 +176,8 @@ int main(int argc, char* argv[]) {
         bgm = Mix_LoadMUS("snd1.mp3");
         if (bgm) {
             // FIXED: Fades the music in over 4000 milliseconds (4 seconds)
-            Mix_FadeInMusic(bgm, -1, 4000); 
+            Mix_FadeInMusic(bgm, -1, 4000);
+        }
         } else {
         SDL_Log("Warning: Audio failed to initialize, continuing without sound. %s", Mix_GetError());
     }
