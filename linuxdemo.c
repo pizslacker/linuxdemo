@@ -22,7 +22,7 @@ static const uint32_t firePalette[37] = {
     0xFFffffff 
 };
 
-/* Expanded 3x5 font (Added m, a, d, e for the intro screen) */
+/* Expanded 3x5 font */
 const char* font3x5[][5] = {
     {"###", "# #", "###", "# #", "# #"}, // 0: A
     {"## ", "# #", "## ", "# #", "## "}, // 1: B
@@ -64,7 +64,6 @@ const char* font3x5[][5] = {
     {"   ", " ##", "###", "#  ", " ##"}  // 37: e 
 };
 
-// FIXED: Explicit (int) cast prevents -Wsign-compare compiler warnings
 #define FONT_MAX_INDEX ((int)(sizeof(font3x5) / sizeof(font3x5[0])) - 1)
 
 uint8_t firePixels[FIRE_HEIGHT][FIRE_WIDTH];
@@ -175,10 +174,9 @@ int main(int argc, char* argv[]) {
     if (Mix_OpenAudio(22500, MIX_DEFAULT_FORMAT, 2, 2048) == 0) {
         bgm = Mix_LoadMUS("snd1.mp3");
         if (bgm) {
-            // FIXED: Fades the music in over 4000 milliseconds (4 seconds)
-            Mix_FadeInMusic(bgm, -1, 4000);
+            Mix_FadeInMusic(bgm, -1, 4000); 
         }
-        } else {
+    } else {
         SDL_Log("Warning: Audio failed to initialize, continuing without sound. %s", Mix_GetError());
     }
 
@@ -202,23 +200,34 @@ int main(int argc, char* argv[]) {
     const char* scrollText = "*** HELLO  DEMOSCENE!  ***  WELCOME  TO  THE  LINUX  TERMINAL  ***  ENJOY  THIS  PARALLAX  STARFIELD  WITH  SPHERICAL  TEXT  SPIN  AND  PIXEL  FIRE  ***  GREETINGS  FROM  NORWAY!   ***";
     
     // State machine variables
-    int demo_state = 0; // 0 = Intro, 1 = Main Demo
+    int demo_state = 0; 
     int intro_frames = 0;
     int time_counter = 0;
     
+    // NEW: Exit Sequence variables
     bool running = true;
+    bool is_exiting = false;
+    int exit_frames = 0;
+
     SDL_Event event;
 
     while (running) {
         while (SDL_PollEvent(&event)) {
+            // Hard OS quit (clicking the "X" button) exits instantly
             if (event.type == SDL_QUIT) running = false;
-            if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE) running = false;
+            
+            // Soft quit (Pressing ESC) triggers the gorgeous fade-out sequence
+            if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE) {
+                if (!is_exiting) {
+                    is_exiting = true;
+                    if (bgm) Mix_FadeOutMusic(2000); // Fade audio over 2 seconds
+                }
+            }
         }
 
         memset(frameBuffer, 0, sizeof(frameBuffer));
 
         /* --- GLOBAL BACKGROUND UPDATES --- */
-        // We update the fire invisibly during the intro so it's fully blazing when the scene cuts
         for (int x = 0; x < FIRE_WIDTH; x++) firePixels[FIRE_HEIGHT - 1][x] = 36;
         updateFire();
         
@@ -228,7 +237,6 @@ int main(int argc, char* argv[]) {
         if (demo_state == 0) {
             intro_frames++;
             
-            // Silently push the stars forward in the background
             for(int i=0; i<NUM_STARS; i++) {
                 stars[i].z -= starSpeed;
                 if (stars[i].z <= 1.0f) {
@@ -238,24 +246,20 @@ int main(int argc, char* argv[]) {
                 }
             }
 
-            // Calculate Fade Alpha (60 FPS base)
             int alpha = 0;
-            if (intro_frames < 60) alpha = (intro_frames * 255) / 60;               // Fade In
-            else if (intro_frames < 150) alpha = 255;                               // Hold
-            else if (intro_frames < 210) alpha = 255 - ((intro_frames - 150) * 255) / 60; // Fade Out
-            else alpha = 0;                                                         // Black Screen Hold
+            if (intro_frames < 60) alpha = (intro_frames * 255) / 60;               
+            else if (intro_frames < 150) alpha = 255;                               
+            else if (intro_frames < 210) alpha = 255 - ((intro_frames - 150) * 255) / 60; 
+            else alpha = 0;                                                         
 
-            // Switch to Main Demo at 4 seconds (240 frames)
             if (intro_frames >= 240) {
                 demo_state = 1;
             } else if (alpha > 0) {
-                // "made by k!M" -> indices: m, a, d, e, space, b, y, space, k, !, M
                 int intro_indices[] = {34, 35, 36, 37, 26, 32, 33, 26, 31, 30, 12};
                 
                 float scale = 1.0f;
-                int size = 2; // Pixel block size for scale 1.0
+                int size = 2; 
                 
-                // Math to perfectly center the text string on screen
                 int char_width = 3 * size;
                 int spacing = 1 * size;
                 int total_width = 11 * char_width + 10 * spacing;
@@ -270,7 +274,6 @@ int main(int argc, char* argv[]) {
         
         /* --- STATE 1: MAIN DEMO --- */
         else {
-            /* Warp-Speed Star Trails */
             for(int i=0; i<NUM_STARS; i++) {
                 float old_z = stars[i].z;
                 stars[i].z -= starSpeed;
@@ -303,7 +306,6 @@ int main(int argc, char* argv[]) {
                 drawLine(prev_px, prev_py, px, py, 0xFF000000 | (r<<16) | (g<<8) | b);
             }
 
-            /* Spherical Text Spin */
             float radius = 110.0f;
             for (int i = 0; scrollText[i] != '\0'; i++) {
                 float theta = (time_counter * 0.02f) - (i * 0.35f); 
@@ -328,7 +330,6 @@ int main(int argc, char* argv[]) {
                 drawChar(char_idx, cx, cy, scale, 0xFF000000 | (0<<16) | (depthColor<<8) | 255);
             }
 
-            /* Overlay Fire */
             for (int y = 0; y < FIRE_HEIGHT; y++) {
                 for (int x = 0; x < FIRE_WIDTH; x++) {
                     int heat = firePixels[y][x];
@@ -336,21 +337,7 @@ int main(int argc, char* argv[]) {
                 }
             }
 
-
-        /* --- POST-PROCESSING: CRT SCANLINES --- 
-           (Applied to both Intro screen and Main demo for visual consistency) */
-        for (int y = 0; y < FIRE_HEIGHT; y += 2) {
-            for (int x = 0; x < FIRE_WIDTH; x++) {
-                uint32_t c = frameBuffer[y][x];
-                uint8_t r = ((c >> 16) & 0xFF) / 2;
-                uint8_t g = ((c >> 8) & 0xFF) / 2;
-                uint8_t b = (c & 0xFF) / 2;
-                frameBuffer[y][x] = 0xFF000000 | (r<<16) | (g<<8) | b;
-            }
-        }
-
-        /* Glowing Watermark (Bottom Right) */
-            int wm_indices[] = {32, 33, 26, 31, 30, 12}; // by k!M
+            int wm_indices[] = {32, 33, 26, 31, 30, 12}; 
             int wm_x = FIRE_WIDTH - 28;      
             int wm_y = FIRE_HEIGHT - 8;      
             
@@ -369,7 +356,43 @@ int main(int argc, char* argv[]) {
             time_counter++;
         }
 
-        /* --- PUSH TO GPU --- */
+        /* --- POST-PROCESSING: CRT SCANLINES & EXIT FADE --- */
+        float exit_brightness = 1.0f;
+        if (is_exiting) {
+            exit_frames++;
+            // Calculate a descending multiplier from 1.0 to 0.0 over 120 frames (~2 seconds)
+            exit_brightness = 1.0f - ((float)exit_frames / 120.0f);
+            if (exit_brightness < 0.0f) exit_brightness = 0.0f;
+            
+            // Terminate loop once the screen goes fully black
+            if (exit_frames >= 120) running = false;
+        }
+
+        for (int y = 0; y < FIRE_HEIGHT; y++) {
+            for (int x = 0; x < FIRE_WIDTH; x++) {
+                uint32_t c = frameBuffer[y][x];
+                uint8_t r = (c >> 16) & 0xFF;
+                uint8_t g = (c >> 8) & 0xFF;
+                uint8_t b = c & 0xFF;
+                
+                // 1. Apply Retro CRT Scanline darkening on even rows
+                if ((y & 1) == 0) {
+                    r >>= 1; 
+                    g >>= 1; 
+                    b >>= 1;
+                }
+
+                // 2. Multiply RGB by the dimming factor if we are exiting
+                if (is_exiting) {
+                    r = (uint8_t)(r * exit_brightness);
+                    g = (uint8_t)(g * exit_brightness);
+                    b = (uint8_t)(b * exit_brightness);
+                }
+                
+                frameBuffer[y][x] = 0xFF000000 | (r<<16) | (g<<8) | b;
+            }
+        }
+
         SDL_UpdateTexture(texture, NULL, frameBuffer, FIRE_WIDTH * sizeof(uint32_t));
         SDL_RenderClear(renderer);
         SDL_RenderCopy(renderer, texture, NULL, NULL); 
