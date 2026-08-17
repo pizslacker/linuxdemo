@@ -354,7 +354,6 @@ int main(int argc, char* argv[]) {
             time_counter++;
         }
 
-
         /* --- POST-PROCESSING: CRT SCANLINES & EXIT FADE --- */
         float exit_brightness = 1.0f;
         if (is_exiting) {
