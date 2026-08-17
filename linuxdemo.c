@@ -70,7 +70,7 @@ uint8_t firePixels[FIRE_HEIGHT][FIRE_WIDTH];
 uint32_t frameBuffer[FIRE_HEIGHT][FIRE_WIDTH];
 struct Star { float x, y, z; } stars[NUM_STARS];
 
-/* Bresenham's Line Algorithm */
+/* Bresenham's Line Algorithm, for starfield > star trails*/
 void drawLine(int x0, int y0, int x1, int y1, uint32_t color) {
     int dx = abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
     int dy = -abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
@@ -86,7 +86,7 @@ void drawLine(int x0, int y0, int x1, int y1, uint32_t color) {
         if (e2 <= dx) { err += dx; y0 += sy; }
     }
 }
-
+// Spherical text spin
 void drawChar(int ch_idx, float cx, float cy, float scale, uint32_t color) {
     if (ch_idx < 0 || ch_idx > FONT_MAX_INDEX) return; 
     int size = (int)(2.0f * scale); 
