@@ -6,6 +6,11 @@ Made with C using SDL2 that implements the classic "Doom" pixel fire algorithm, 
 
 Should work on any Linux distribution that has SDL2 + SDL2_mixer.
 
+#### Required:
+```bash
+sudo apt-get install build-essential libsdl2-dev libsdl2-mixer-dev
+```
+
 Usage:
 ```bash
 $ linuxdemo -f / --fullscreen /  -w 1280 -h 720 / --width 1280 --height 720
