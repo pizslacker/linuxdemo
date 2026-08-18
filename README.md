@@ -29,4 +29,4 @@ https://www.youtube.com/watch?v=qbnEi5xHPZY
 - It uses Bresenham's Line Algorithm for parrallax star trails.
 - It also emulates CRT scanlines for oldschool feels' :P Right before blasting the buffer to the GPU, we loop over every even row in the frameBuffer and bit-shift/divide the RGB channels by half, creating dark interlaced lines.
 
-![linuxdemo](https://github.com/pizslacker/linuxdemo/blob/main/images/linuxdemo.png)
+![linuxdemo][images/linuxdemo.png)
