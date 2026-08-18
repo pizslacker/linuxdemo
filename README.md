@@ -4,6 +4,8 @@ A little excercise for myself creating a demoscene'ish program, showing off clas
 
 Made with C using SDL2 that implements the classic "Doom" pixel fire algorithm, spherical text scrolling banner and a parrallax moving star trail background. Now with a soundbyte bgm loop!
 
+Should work on any Linux distribution that has SDL2 + SDL2_mixer.
+
 Usage:
 ```bash
 $ linuxdemo -f / --fullscreen /  -w 1280 -h 720 / --width 1280 --height 720
